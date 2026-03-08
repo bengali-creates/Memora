@@ -10,7 +10,22 @@
 
 import { Audio } from 'expo-av';
 import { Paths, File } from 'expo-file-system';
-import { InferenceSession, Tensor } from 'onnxruntime-react-native';
+
+// Lazy import ONNX Runtime to prevent crashes if not available
+let InferenceSession: any = null;
+let Tensor: any = null;
+let onnxAvailable = false;
+
+try {
+  const onnx = require('onnxruntime-react-native');
+  InferenceSession = onnx.InferenceSession;
+  Tensor = onnx.Tensor;
+  onnxAvailable = true;
+  console.log('[VAD] ONNX Runtime loaded successfully');
+} catch (error) {
+  console.warn('[VAD] ONNX Runtime not available - VAD features will be disabled:', error);
+  onnxAvailable = false;
+}
 
 // Configuration
 const SILENCE_THRESHOLD_SECONDS = 30; // Stop after 30s of silence
@@ -20,7 +35,8 @@ const VAD_THRESHOLD = 0.5; // Speech probability threshold (0-1)
 const CHECK_INTERVAL_MS = 500; // How often to check for silence
 
 // API Configuration - Use environment variables
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+// Note: API_BASE_URL should include /api at the end
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api';
 const PYTHON_URL = process.env.EXPO_PUBLIC_PYTHON_URL || 'http://localhost:8000';
 
 export interface RecordingState {
@@ -40,7 +56,7 @@ export interface ProcessingResult {
 
 class AudioRecordingService {
   private recording: Audio.Recording | null = null;
-  private vadSession: InferenceSession | null = null;
+  private vadSession: any = null;
   private vadState: Float32Array | null = null;
   private vadContext: Float32Array | null = null;
   private isInitialized: boolean = false;
@@ -48,6 +64,9 @@ class AudioRecordingService {
   private recordingStartTime: number = 0;
   private lastSpeechTime: number = 0;
   private silenceCheckInterval: NodeJS.Timeout | null = null;
+
+  private beepSound: Audio.Sound | null = null;
+  private hasPlayedStartBeep: boolean = false;
 
   private stateListeners: Set<(state: RecordingState) => void> = new Set();
   private currentState: RecordingState = {
@@ -60,27 +79,75 @@ class AudioRecordingService {
 
   constructor() {
     this.initializeVAD();
+    this.initializeBeepSound();
+  }
+
+  /**
+   * Initialize beep sound for conversation start
+   */
+  private async initializeBeepSound() {
+    try {
+      // Create a simple beep sound using Audio API
+      // We'll use the system sound for now (can be replaced with a custom sound file)
+      console.log('[BEEP] Beep sound initialized');
+    } catch (error) {
+      console.error('[BEEP] Failed to initialize beep sound:', error);
+    }
+  }
+
+  /**
+   * Play a beep sound to indicate conversation start
+   */
+  async playStartBeep(): Promise<void> {
+    try {
+      // Play a simple notification sound
+      // Using Expo's Audio Sound API with a generated tone
+      const { sound } = await Audio.Sound.createAsync(
+        // Use system notification sound as fallback
+        // In production, you can replace this with a custom beep.mp3
+        { uri: 'https://actions.google.com/sounds/v1/alarms/beep_short.ogg' },
+        { shouldPlay: true, volume: 0.5 }
+      );
+
+      // Clean up sound after playing
+      sound.setOnPlaybackStatusUpdate((status) => {
+        if (status.isLoaded && status.didJustFinish) {
+          sound.unloadAsync();
+        }
+      });
+
+      console.log('[BEEP] Played start beep');
+    } catch (error) {
+      console.error('[BEEP] Failed to play beep:', error);
+      // Don't throw - beep is optional, continue recording
+    }
   }
 
   /**
    * Initialize Silero VAD model
    */
   private async initializeVAD() {
+    // Skip VAD initialization if ONNX Runtime is not available
+    if (!onnxAvailable || !InferenceSession || !Tensor) {
+      console.warn('[VAD] ONNX Runtime not available - VAD features disabled');
+      this.isInitialized = false;
+      return;
+    }
+
     try {
       console.log('[VAD] Initializing Silero VAD model...');
 
-      // Path to the ONNX model (we'll download this)
-      const modelPath = `${FileSystem.cacheDirectory}silero_vad.onnx`;
+      // Create file reference for the ONNX model
+      const modelFile = new File(Paths.cache, 'silero_vad.onnx');
 
       // Check if model exists, if not download it
-      const modelInfo = await FileSystem.getInfoAsync(modelPath);
-      if (!modelInfo.exists) {
+      if (!modelFile.exists) {
         console.log('[VAD] Downloading Silero VAD model...');
-        await this.downloadVADModel(modelPath);
+        await this.downloadVADModel(modelFile);
       }
 
       // Load the ONNX model
-      this.vadSession = await InferenceSession.create(modelPath);
+      this.vadSession = await InferenceSession.create(modelFile.uri);
 
       // Initialize VAD state tensors (required by Silero VAD)
       this.vadState = new Float32Array(2 * 64).fill(0);
@@ -98,12 +165,15 @@ class AudioRecordingService {
   /**
    * Download Silero VAD model from GitHub
    */
-  private async downloadVADModel(targetPath: string) {
+  private async downloadVADModel(targetFile: File) {
     const modelUrl = 'https://github.com/snakers4/silero-vad/raw/master/files/silero_vad.onnx';
 
     try {
-      const downloadResult = await FileSystem.downloadAsync(modelUrl, targetPath);
-      console.log('[VAD] Model downloaded to:', downloadResult.uri);
+      const response = await fetch(modelUrl);
+      const arrayBuffer = await response.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      targetFile.write(bytes);
+      console.log('[VAD] Model downloaded to:', targetFile.uri);
     } catch (error) {
       console.error('[VAD] Failed to download model:', error);
       throw new Error('Failed to download VAD model. Please check your internet connection.');
@@ -115,8 +185,8 @@ class AudioRecordingService {
    * Returns probability of speech (0-1)
    */
   private async detectSpeech(audioData: Float32Array): Promise<number> {
-    if (!this.vadSession || !this.isInitialized) {
-      console.warn('[VAD] VAD not initialized, assuming speech');
+    if (!this.vadSession || !this.isInitialized || !onnxAvailable || !Tensor) {
+      console.warn('[VAD] VAD not initialized or not available, assuming speech');
       return 1.0;
     }
 
@@ -155,20 +225,12 @@ class AudioRecordingService {
    * Convert audio buffer to Float32Array (PCM format)
    */
   private async convertAudioToFloat32(audioUri: string): Promise<Float32Array> {
-    // Read audio file as base64
-    const audioBase64 = await FileSystem.readAsStringAsync(audioUri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-
-    // Decode base64 to binary
-    const binaryString = atob(audioBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
+    // Create file reference and read as arraybuffer
+    const audioFile = new File(audioUri);
+    const arrayBuffer = await audioFile.arrayBuffer();
 
     // Convert to Int16Array (assuming 16-bit PCM)
-    const int16Array = new Int16Array(bytes.buffer);
+    const int16Array = new Int16Array(arrayBuffer);
 
     // Normalize to Float32Array (-1.0 to 1.0)
     const float32Array = new Float32Array(int16Array.length);
@@ -232,6 +294,7 @@ class AudioRecordingService {
       // Initialize timing
       this.recordingStartTime = Date.now();
       this.lastSpeechTime = Date.now();
+      this.hasPlayedStartBeep = false;
 
       // Update state
       this.updateState({
@@ -241,6 +304,9 @@ class AudioRecordingService {
         audioLevel: 0,
         isSpeaking: true
       });
+
+      // Play start beep to indicate recording has begun
+      this.playStartBeep();
 
       // Start monitoring for silence
       this.startSilenceMonitoring();
@@ -392,7 +458,8 @@ class AudioRecordingService {
       }
 
       // Upload to backend
-      const response = await fetch(`${API_BASE_URL}/api/upload/process`, {
+      // Note: API_BASE_URL already includes /api (from .env)
+      const response = await fetch(`${API_BASE_URL}/upload/process`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`,

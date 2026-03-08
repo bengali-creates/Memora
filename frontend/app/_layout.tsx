@@ -13,12 +13,21 @@ import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
 
+// Dev mode flag - skip auth checks
+const DEV_MODE = process.env.EXPO_PUBLIC_DEV_MODE === "true";
+
 function AuthGate({ children }: Readonly<{ children: React.ReactNode }>) {
   const { user, isLoading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    // In dev mode, skip all auth redirects
+    if (DEV_MODE) {
+      console.log('[AUTH GATE] Dev mode - skipping auth checks');
+      return;
+    }
+
     if (isLoading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
@@ -29,6 +38,11 @@ function AuthGate({ children }: Readonly<{ children: React.ReactNode }>) {
       router.replace("/(tabs)");
     }
   }, [user, isLoading, segments]);
+
+  // In dev mode, skip loading screen
+  if (DEV_MODE) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
@@ -75,6 +89,21 @@ export default function RootLayout() {
           >
             <Stack.Screen name="(auth)" />
             <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="event-mode"
+              options={{
+                headerShown: true,
+                headerTitle: "Event Mode",
+                headerStyle: { backgroundColor: t.bg },
+                headerShadowVisible: false,
+                headerTintColor: t.accent,
+                headerTitleStyle: {
+                  fontFamily: "Syne_700Bold",
+                  color: t.text,
+                  fontSize: 17,
+                },
+              }}
+            />
             <Stack.Screen
               name="contact"
               options={{

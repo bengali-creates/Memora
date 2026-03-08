@@ -14,11 +14,23 @@ import { auth0Config, apiConfig } from "@/config/auth0";
 const AUTH_KEY = "memora_auth_user";
 const TOKEN_KEY = "memora_auth_token";
 
-// Initialize Auth0
-const auth0 = new Auth0({
+// Dev mode flag - skip Auth0 for testing
+const DEV_MODE = process.env.EXPO_PUBLIC_DEV_MODE === "true";
+
+// Mock user for dev mode
+const MOCK_USER: AuthUser = {
+  name: "Dev User",
+  email: "dev@test.com",
+};
+
+// Mock token for dev mode (base64 encoded "dev-mode-token")
+const MOCK_TOKEN = "ZGV2LW1vZGUtdG9rZW4=";
+
+// Initialize Auth0 (skip if dev mode)
+const auth0 = !DEV_MODE ? new Auth0({
   domain: auth0Config.domain,
   clientId: auth0Config.clientId,
-});
+}) : null;
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -40,6 +52,18 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
 
   const loadStoredAuth = async () => {
     try {
+      // In dev mode, auto-login with mock user
+      if (DEV_MODE) {
+        console.log("[AUTH] Dev mode enabled - using mock user");
+        setUser(MOCK_USER);
+        await Promise.all([
+          SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(MOCK_USER)),
+          SecureStore.setItemAsync(TOKEN_KEY, MOCK_TOKEN),
+        ]);
+        setIsLoading(false);
+        return;
+      }
+
       const [storedUser, storedToken] = await Promise.all([
         SecureStore.getItemAsync(AUTH_KEY),
         SecureStore.getItemAsync(TOKEN_KEY),
@@ -58,6 +82,25 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
   const signUp = useCallback(async (name: string, email: string, password: string) => {
     if (!name.trim() || !email.trim() || !password.trim()) {
       return { success: false, error: "All fields are required" };
+    }
+
+    // Dev mode - instant success
+    if (DEV_MODE) {
+      console.log("[AUTH] Dev mode - skipping signup");
+      const devUser: AuthUser = {
+        name: name.trim(),
+        email: email.trim().toLowerCase(),
+      };
+      setUser(devUser);
+      await Promise.all([
+        SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(devUser)),
+        SecureStore.setItemAsync(TOKEN_KEY, MOCK_TOKEN),
+      ]);
+      return { success: true };
+    }
+
+    if (!auth0) {
+      return { success: false, error: "Auth not initialized" };
     }
 
     try {
@@ -84,6 +127,25 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
   const signIn = useCallback(async (email: string, password: string) => {
     if (!email.trim() || !password.trim()) {
       return { success: false, error: "All fields are required" };
+    }
+
+    // Dev mode - instant success
+    if (DEV_MODE) {
+      console.log("[AUTH] Dev mode - skipping signin");
+      const devUser: AuthUser = {
+        name: email.split("@")[0] || "Dev User",
+        email: email.trim().toLowerCase(),
+      };
+      setUser(devUser);
+      await Promise.all([
+        SecureStore.setItemAsync(AUTH_KEY, JSON.stringify(devUser)),
+        SecureStore.setItemAsync(TOKEN_KEY, MOCK_TOKEN),
+      ]);
+      return { success: true };
+    }
+
+    if (!auth0) {
+      return { success: false, error: "Auth not initialized" };
     }
 
     try {
@@ -144,7 +206,20 @@ export function AuthProvider({ children }: Readonly<{ children: React.ReactNode 
 
   const signOut = useCallback(async () => {
     try {
-      await auth0.webAuth.clearSession();
+      // Dev mode - just clear local storage
+      if (DEV_MODE) {
+        console.log("[AUTH] Dev mode - skipping Auth0 signout");
+        await Promise.all([
+          SecureStore.deleteItemAsync(AUTH_KEY),
+          SecureStore.deleteItemAsync(TOKEN_KEY),
+        ]);
+        setUser(null);
+        return;
+      }
+
+      if (auth0) {
+        await auth0.webAuth.clearSession();
+      }
       await Promise.all([
         SecureStore.deleteItemAsync(AUTH_KEY),
         SecureStore.deleteItemAsync(TOKEN_KEY),

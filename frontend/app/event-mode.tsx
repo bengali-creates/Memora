@@ -12,10 +12,11 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useRouter } from 'expo-router';
-import { Mic, MicOff, Upload, Activity } from 'lucide-react-native';
+import { Mic, MicOff, Upload, Activity, Smartphone } from 'lucide-react-native';
 import { useTheme } from '@/constants/theme';
 import { useAuth } from '@/services/authContext';
 import { audioService, RecordingState } from '@/services/audioService';
+import { shakeDetection } from '@/services/shakeDetection';
 
 export default function EventModeScreen() {
   const t = useTheme();
@@ -31,6 +32,7 @@ export default function EventModeScreen() {
   });
   const [audioUri, setAudioUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [shakeEnabled, setShakeEnabled] = useState(true);
 
   // Subscribe to recording state changes
   useEffect(() => {
@@ -48,6 +50,32 @@ export default function EventModeScreen() {
       audioService.cleanup();
     };
   }, [audioUri]);
+
+  // Setup shake detection
+  useEffect(() => {
+    if (shakeEnabled) {
+      // Start shake detection
+      shakeDetection.startDetection().catch(error => {
+        console.error('[SHAKE] Failed to start shake detection:', error);
+        setShakeEnabled(false);
+      });
+
+      // Subscribe to shake events
+      const unsubscribe = shakeDetection.onShake(() => {
+        // Toggle recording on shake
+        if (recordingState.isRecording) {
+          handleStopRecording();
+        } else {
+          handleStartRecording();
+        }
+      });
+
+      return () => {
+        unsubscribe();
+        shakeDetection.stopDetection();
+      };
+    }
+  }, [shakeEnabled, recordingState.isRecording]);
 
   /**
    * Format seconds to MM:SS
@@ -158,14 +186,41 @@ export default function EventModeScreen() {
 
       {/* Header */}
       <View style={{ padding: 24, paddingTop: 60 }}>
-        <Text style={{
-          fontSize: 28,
-          fontFamily: 'Syne_700Bold',
-          color: t.text,
-          marginBottom: 8
-        }}>
-          Event Mode
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <Text style={{
+            fontSize: 28,
+            fontFamily: 'Syne_700Bold',
+            color: t.text,
+          }}>
+            Event Mode
+          </Text>
+
+          {/* Shake Detection Toggle */}
+          <TouchableOpacity
+            onPress={() => setShakeEnabled(!shakeEnabled)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: shakeEnabled ? t.accentDim : t.surface,
+              borderWidth: 1,
+              borderColor: shakeEnabled ? t.accent : t.border,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              gap: 6
+            }}
+          >
+            <Smartphone size={16} color={shakeEnabled ? t.accent : t.textMuted} />
+            <Text style={{
+              fontSize: 12,
+              fontFamily: 'Poppins_600SemiBold',
+              color: shakeEnabled ? t.accent : t.textMuted
+            }}>
+              Shake
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <Text style={{
           fontSize: 15,
           fontFamily: 'Poppins_400Regular',
@@ -173,6 +228,27 @@ export default function EventModeScreen() {
         }}>
           Record conversations and extract contacts automatically
         </Text>
+
+        {/* Shake Hint */}
+        {shakeEnabled && (
+          <View style={{
+            backgroundColor: t.accentDim,
+            borderRadius: 8,
+            padding: 8,
+            marginTop: 12,
+            borderWidth: 1,
+            borderColor: t.accent + '40'
+          }}>
+            <Text style={{
+              fontSize: 12,
+              fontFamily: 'Poppins_400Regular',
+              color: t.accent,
+              textAlign: 'center'
+            }}>
+              📱 Shake your phone to start/stop recording
+            </Text>
+          </View>
+        )}
       </View>
 
       {/* Recording Stats */}
