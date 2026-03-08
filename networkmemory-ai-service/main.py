@@ -428,7 +428,7 @@ async def notify_backend_async(
         }
 
         backend_url = settings.BACKEND_URL or "http://localhost:3000"
-        endpoint = f"{backend_url}/api/contacts/save-from-python"
+        endpoint = f"{backend_url}/api/upload/save-from-python"
 
         print(f"[BACKGROUND] Sending to backend: {endpoint}")
 

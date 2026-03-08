@@ -1,0 +1,428 @@
+# Project Rules for NetworkMemory AI Service
+
+## Critical Security Rules
+
+### 1. NEVER Update Sensitive Information
+- **NEVER** hardcode or commit sensitive data like API keys, tokens, passwords, or database credentials
+- **NEVER** modify or expose environment variables in the code
+- All sensitive configuration MUST stay in `.env` file (which should be in `.gitignore`)
+- Use `settings` object from `config.py` to access environment variables
+- When suggesting code changes, always use `settings.VARIABLE_NAME` pattern, never hardcode values
+
+**Examples:**
+```python
+# ❌ WRONG - Never hardcode
+OPENAI_API_KEY = "sk-abc123..."
+DATABASE_URL = "postgresql://user:pass@localhost/db"
+
+# ✅ CORRECT - Always use settings
+from config import settings
+api_key = settings.OPENAI_API_KEY
+db_url = settings.DATABASE_URL
+```
+
+### 2. Security Best Practices
+- Validate all user inputs to prevent injection attacks
+- Always use parameterized queries (never string concatenation for SQL)
+- Sanitize file paths to prevent directory traversal
+- Use proper authentication/authorization for all endpoints
+- Never expose internal error details to API responses in production
+- Keep dependencies updated to patch security vulnerabilities
+
+---
+
+## Code Modification Guidelines
+
+### 3. Update Functions, Don't Rewrite Them
+- **ALWAYS** prefer modifying existing functions over complete rewrites
+- Understand the current implementation before suggesting changes
+- Preserve existing functionality unless explicitly asked to change it
+- Keep the same function signature unless there's a compelling reason to change it
+- Maintain backward compatibility when possible
+- Only suggest refactoring when the existing code has serious issues
+
+**When updating functions:**
+1. Read and understand the current implementation first
+2. Identify the specific part that needs to change
+3. Make minimal, targeted modifications
+4. Preserve existing comments and documentation
+5. Keep the same coding style and patterns
+
+**Example:**
+```python
+# ❌ WRONG - Complete rewrite
+# User: "Add validation for empty name"
+def process_contact(contact_data):
+    # Completely new implementation...
+
+# ✅ CORRECT - Targeted update
+def process_contact(contact_data):
+    # [existing code preserved]
+
+    # Add validation (new code)
+    if not contact_data.get("name") or not contact_data["name"].strip():
+        raise ValueError("Contact name cannot be empty")
+
+    # [rest of existing code preserved]
+```
+
+---
+
+## Tech Stack Compliance
+
+### 4. Follow the Tech Stack Strictly
+
+**Backend Framework:**
+- FastAPI (async/await patterns)
+- Uvicorn for ASGI server
+- Pydantic for data validation and serialization
+
+**AI/ML Stack:**
+- OpenAI Whisper for speech-to-text transcription
+- OpenAI GPT models for text processing and extraction
+- CrewAI for multi-agent workflows
+- Transformers library for audio processing
+
+**Data & Storage:**
+- Supabase for storage (audio files)
+- PostgreSQL via Node.js backend (don't implement direct DB access here)
+
+**HTTP & Communication:**
+- httpx for async HTTP clients (not requests)
+- Background tasks using FastAPI's BackgroundTasks
+- Multipart form data for file uploads
+
+**Python Version & Style:**
+- Python 3.9+
+- Type hints for function parameters and return values
+- Async/await for I/O operations
+- F-strings for string formatting
+
+**DO NOT introduce:**
+- Synchronous HTTP libraries (requests, urllib)
+- Different web frameworks (Flask, Django)
+- Different validation libraries
+- Sync/blocking code in async endpoints
+- npm packages or JavaScript code (this is Python service)
+
+---
+
+## Code Style & Standards
+
+### 5. Python Code Style
+- Follow PEP 8 style guide
+- Use 4 spaces for indentation (not tabs)
+- Maximum line length: 100 characters
+- Use type hints for all function parameters and returns
+- Use docstrings for all public functions and endpoints
+- **NEVER use emojis in code, comments, logs, or error messages**
+
+**No Emojis Rule:**
+```python
+# ❌ WRONG - Never use emojis
+print("✅ Processing complete!")
+logger.info("🚀 Starting pipeline...")
+raise ValueError("❌ Invalid input")
+
+# ✅ CORRECT - Use plain text
+print("[OK] Processing complete!")
+logger.info("[INIT] Starting pipeline...")
+raise ValueError("[ERROR] Invalid input")
+```
+
+**Function Documentation:**
+```python
+async def process_audio(audio_url: str, event_context: dict = None) -> dict:
+    """
+    Process audio file and extract contact information
+
+    Args:
+        audio_url: URL to the audio file to process
+        event_context: Optional event metadata (name, location, timestamp)
+
+    Returns:
+        dict: Processing result with status, contact_card, and metadata
+
+    Raises:
+        HTTPException: If processing fails or pipeline not initialized
+    """
+```
+
+### 6. Async/Await Patterns
+- All endpoints MUST be async (`async def`)
+- Use `await` for I/O operations (file reads, HTTP requests, model inference)
+- Use `httpx.AsyncClient()` for HTTP requests (not `requests`)
+- Use background tasks for operations that don't need to block response
+
+**Example:**
+```python
+# ✅ CORRECT async patterns
+@app.post("/api/endpoint")
+async def endpoint(request: Request):
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+    result = await some_async_operation()
+    return result
+
+# ❌ WRONG - blocking operations
+def endpoint(request: Request):  # Missing async
+    response = requests.get(url)  # Blocking HTTP call
+    time.sleep(5)  # Blocking sleep
+```
+
+### 7. Error Handling
+- Use FastAPI's HTTPException for API errors
+- Always include helpful error messages
+- Log errors with context (what was being processed)
+- Return structured error responses (never expose stack traces in production)
+- Clean up resources (temp files) in finally blocks or context managers
+
+```python
+try:
+    result = await process_audio(audio_url)
+    return result
+except FileNotFoundError as e:
+    print(f"[ERROR] Audio file not found: {audio_url}")
+    raise HTTPException(status_code=404, detail="Audio file not found")
+except Exception as e:
+    print(f"[ERROR] Processing failed: {str(e)}")
+    raise HTTPException(status_code=500, detail=f"Processing failed: {str(e)}")
+finally:
+    cleanup_temp_files()  # Always cleanup
+```
+
+---
+
+## Project Architecture
+
+### 8. Service Boundaries & Responsibilities
+
+**This Python Service Handles:**
+- Audio transcription (Whisper)
+- Text processing and extraction (GPT)
+- Contact enrichment (AI agents)
+- ML model inference
+
+**Node.js Backend Handles:**
+- Database operations (PostgreSQL)
+- User authentication
+- File uploads to Supabase Storage
+- Business logic and orchestration
+
+**React Native Frontend Handles:**
+- User interface
+- Audio recording
+- Displaying contact cards
+
+**DO NOT:**
+- Implement database models or migrations in Python service
+- Handle user authentication in Python service (rely on tokens from backend)
+- Add frontend code to this repository
+- Duplicate logic that exists in other services
+
+### 9. File Organization
+```
+networkmemory-ai-service/
+├── main.py                    # FastAPI app & endpoints
+├── config.py                  # Environment config & settings
+├── models.py                  # Pydantic models (request/response)
+├── .env                       # Environment variables (never commit!)
+├── requirements.txt           # Python dependencies
+├── audio_pipeline/            # Audio processing logic
+│   ├── pipeline.py
+│   └── processors/
+├── agents/                    # AI agents (CrewAI)
+│   ├── enrichment.py
+│   └── crew.py
+├── utils/                     # Helper functions
+└── tests/                     # Test files
+```
+
+**When adding new code:**
+- Endpoints go in `main.py` or new router files
+- Data models go in `models.py`
+- Business logic goes in appropriate modules (audio_pipeline, agents, utils)
+- Keep main.py focused on HTTP layer, move complex logic to modules
+
+---
+
+## Testing & Debugging
+
+### 10. Testing Guidelines
+- Write tests for new endpoints and core functions
+- Use pytest for testing framework
+- Test both success and error cases
+- Mock external API calls (OpenAI, Supabase)
+- Don't test implementation details, test behavior
+
+### 11. Debug Mode
+- Use `settings.DEBUG` flag to control debug features
+- Debug endpoints should check `if not settings.DEBUG: raise HTTPException(403)`
+- Log important events but don't spam logs
+- Use structured logging with prefixes: `[INFO]`, `[ERROR]`, `[DEBUG]`
+
+```python
+if settings.DEBUG:
+    print(f"[DEBUG] Processing request: {request.dict()}")
+
+print(f"[INFO] Processing audio for user: {user_id}")
+print(f"[ERROR] Pipeline initialization failed: {str(e)}")
+```
+
+---
+
+## Performance & Optimization
+
+### 12. Performance Best Practices
+- Initialize heavy models once at startup (not per request)
+- Reuse HTTP clients (use app state or module-level instances)
+- Use background tasks for non-blocking operations
+- Stream large responses when possible
+- Cache expensive computations when appropriate
+- Clean up temporary files after processing
+
+### 13. Resource Management
+- Always clean up temp files (use context managers or finally blocks)
+- Set timeouts for external HTTP requests
+- Limit upload file sizes
+- Use streaming for large file uploads/downloads
+- Close connections properly
+
+---
+
+## API Design
+
+### 14. Endpoint Conventions
+- Use REST conventions: POST for creation, GET for retrieval
+- Version APIs if needed: `/api/v1/audio/process`
+- Use consistent response format:
+```python
+{
+    "status": "success" | "error",
+    "data": {...},           # for success
+    "error": "...",          # for error
+    "metadata": {...}        # optional
+}
+```
+- Include timestamps in responses
+- Use Pydantic models for request/response validation
+
+### 15. CORS & Security Headers
+- Configure CORS properly (don't use `allow_origins=["*"]` in production)
+- Add security headers
+- Validate content types for file uploads
+- Rate limit expensive endpoints
+
+---
+
+## Dependencies & Environment
+
+### 16. Dependency Management
+- All dependencies MUST be in `requirements.txt`
+- Pin major versions to prevent breaking changes
+- Document why unusual dependencies are needed
+- Keep dependencies minimal (don't add if not needed)
+- Update dependencies regularly but test thoroughly
+
+### 17. Environment Variables
+Required variables (must be in `.env`):
+- `OPENAI_API_KEY`: For GPT and Whisper
+- `BACKEND_URL`: Node.js backend URL
+- `HOST`, `PORT`: Server configuration
+- `DEBUG`: Enable debug mode (true/false)
+- `WHISPER_MODEL_SIZE`: Model size (tiny, base, small, medium, large)
+
+**Always document new environment variables in:**
+1. `config.py` with validation
+2. `.env.example` file
+3. README.md setup section
+
+---
+
+## Git & Commits
+
+### 18. What NOT to Commit
+- `.env` file (sensitive data)
+- `__pycache__/` directories
+- `.pyc` files
+- Virtual environment folders (`venv/`, `env/`)
+- Temporary files and logs
+- Large model files (download at runtime or use external storage)
+- IDE-specific files (`.vscode/`, `.idea/`)
+
+### 19. Commit Messages
+- Use clear, descriptive commit messages
+- Start with verb: "Add", "Fix", "Update", "Remove", "Refactor"
+- Reference issue numbers if applicable
+- Keep commits focused (one logical change per commit)
+
+---
+
+## Additional Guidelines
+
+### 20. Comments & Documentation
+- Comment WHY not WHAT (code should be self-explanatory)
+- Update comments when code changes
+- Add docstrings to all public functions
+- Document complex algorithms or non-obvious logic
+- Keep README.md up to date with setup instructions
+
+### 21. Logging Best Practices
+- Use consistent log prefixes: `[INFO]`, `[ERROR]`, `[WARNING]`, `[DEBUG]`
+- Log important business events (not every line of code)
+- Include context in error logs (what was being processed, user_id, etc.)
+- Don't log sensitive information (tokens, passwords, full API keys)
+- Use structured logging for production environments
+
+### 22. Code Reviews & Collaboration
+- Test changes locally before committing
+- Run the service and test endpoints after changes
+- Check for breaking changes in existing endpoints
+- Update tests when changing functionality
+- Ask questions if requirements are unclear
+
+### 23. NO EMOJIS - Professional Code Only
+- **NEVER use emojis** in any part of the codebase
+- This includes: code, comments, docstrings, log messages, error messages, API responses
+- Use clear text prefixes instead: `[OK]`, `[ERROR]`, `[INFO]`, `[WARNING]`, `[DEBUG]`
+- Emojis can cause encoding issues and are not professional in production code
+- Focus on clarity and readability through plain text
+
+**Why no emojis:**
+- Encoding problems across different systems and terminals
+- Harder to search and grep through logs
+- Not professional for enterprise/production code
+- May not render correctly in all environments
+- Plain text is more accessible and universal
+
+**Always use text prefixes:**
+```python
+# Professional logging
+print("[OK] Server started successfully")
+print("[ERROR] Database connection failed")
+print("[INIT] Loading AI models...")
+print("[PROCESSING] Analyzing audio file...")
+print("[WARNING] API rate limit approaching")
+```
+
+---
+
+## Summary: Key Principles
+
+1. **Security First**: Never expose or hardcode sensitive data
+2. **Minimal Changes**: Update functions, don't rewrite unnecessarily
+3. **Tech Stack Compliance**: Stick to FastAPI, async patterns, defined libraries
+4. **Clean Code**: Type hints, docstrings, error handling, cleanup, NO EMOJIS
+5. **Service Boundaries**: Know what this service does (and doesn't do)
+6. **Performance**: Initialize once, reuse resources, use background tasks
+7. **Testing**: Write tests, handle errors, log properly
+8. **Documentation**: Comment why, document APIs, keep README updated
+
+---
+
+**When in doubt:**
+- Read existing code to understand patterns
+- Ask questions before making significant changes
+- Test your changes thoroughly
+- Follow the examples in the existing codebase
+- Prioritize simplicity and maintainability over cleverness

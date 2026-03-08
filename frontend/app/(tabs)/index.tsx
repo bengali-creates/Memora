@@ -164,12 +164,12 @@ export default function HomeScreen() {
                 <Pressable
                   key={c.id}
                   onPress={() => router.push({ pathname: "/contact", params: { id: String(c.id) } })}
-                  style={({ pressed }) => ({
+                  style={() => ({
                     flexDirection: "row",
                     alignItems: "center",
                     paddingVertical: 14,
                     paddingHorizontal: 16,
-                    backgroundColor: pressed ? t.cardHighlight : "transparent",
+                    backgroundColor: t.cardHighlight,
                     borderTopWidth: i > 0 ? 1 : 0,
                     borderTopColor: t.border,
                   })}

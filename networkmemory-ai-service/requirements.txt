@@ -1,0 +1,40 @@
+# Web Framework - FastAPI for async and automatic API docs
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+httpx==0.25.1
+
+# AI/ML APIs - Free tier available for all
+google-generativeai==0.3.1  # Gemini - 1500 requests/day free
+assemblyai==0.20.0          # AssemblyAI - 5 hours/month free
+elevenlabs==0.2.26          # ElevenLabs - 10k chars/month free
+openai==1.3.5               # OpenAI - for embeddings
+
+# Audio Processing - Open source tools
+faster-whisper==0.9.0       # Faster local Whisper
+pydub==0.25.1              # Audio manipulation
+noisereduce==3.0.0         # Noise reduction
+librosa==0.10.1            # Audio analysis
+soundfile==0.12.1          # Audio file I/O
+
+# Utilities
+python-dotenv==1.0.0       # Environment variables
+
+# Database - Neon DB (Postgres) - replaces Supabase
+psycopg2-binary==2.9.9     # PostgreSQL adapter (binary for Windows compatibility)
+asyncpg==0.29.0            # Async PostgreSQL driver
+sqlalchemy[asyncio]==2.0.23  # ORM with async support
+
+# Data processing - Use >= to allow pre-built wheels on Windows
+numpy>=1.26.0,<1.27.0      # Numerical computing
+pandas>=2.1.0,<2.2.0       # Data manipulation
+
+# Network & Graph (for Day 2)
+networkx==3.2.1            # Graph algorithms
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+
+# Agent Framework (for Day 2)
+crewai==0.11.0

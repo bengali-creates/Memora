@@ -1,0 +1,28 @@
+{
+  "contacts": [
+    {
+      "name": "Sarah Chen",
+      "role": "ML Engineer",
+      "company": "Google",
+      "topics_discussed": ["AI safety", "Machine Learning"],
+      "met_at": "DevFest Kolkata 2026",
+      "met_date": "2026-02-15"
+    },
+    {
+      "name": "John Smith",
+      "role": "Product Manager",
+      "company": "Microsoft",
+      "topics_discussed": ["Product Development", "AI"],
+      "met_at": "Tech Summit 2026",
+      "met_date": "2026-02-10"
+    },
+    {
+      "name": "Emily Davis",
+      "role": "Data Scientist",
+      "company": "Google",
+      "topics_discussed": ["Machine Learning", "Data Analysis"],
+      "met_at": "DevFest Kolkata 2026",
+      "met_date": "2026-02-15"
+    }
+  ]
+}

@@ -8,6 +8,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { ActivityIndicator, View } from "react-native";
+import { ElevenLabsProvider } from "@elevenlabs/react-native";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -61,52 +62,54 @@ export default function RootLayout() {
   }
 
   return (
-    <AuthProvider>
-      <StatusBar style="auto" />
-      <AuthGate>
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: t.bg },
-            animation: "slide_from_right",
-          }}
-        >
-          <Stack.Screen name="(auth)" />
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="contact"
-            options={{
-              headerShown: true,
-              headerTitle: "",
-              headerStyle: { backgroundColor: t.bg },
-              headerShadowVisible: false,
-              headerTintColor: t.accent,
+    <ElevenLabsProvider>
+      <AuthProvider>
+        <StatusBar style="auto" />
+        <AuthGate>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: t.bg },
+              animation: "slide_from_right",
             }}
-          />
-          <Stack.Screen
-            name="processing"
-            options={{
-              presentation: "fullScreenModal",
-              gestureEnabled: false,
-            }}
-          />
-          <Stack.Screen
-            name="talk-bot"
-            options={{
-              headerShown: true,
-              headerTitle: "Talk to Memora",
-              headerStyle: { backgroundColor: t.bg },
-              headerShadowVisible: false,
-              headerTintColor: t.accent,
-              headerTitleStyle: {
-                fontFamily: "Syne_700Bold",
-                color: t.text,
-                fontSize: 17,
-              },
-            }}
-          />
-        </Stack>
-      </AuthGate>
-    </AuthProvider>
+          >
+            <Stack.Screen name="(auth)" />
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="contact"
+              options={{
+                headerShown: true,
+                headerTitle: "",
+                headerStyle: { backgroundColor: t.bg },
+                headerShadowVisible: false,
+                headerTintColor: t.accent,
+              }}
+            />
+            <Stack.Screen
+              name="processing"
+              options={{
+                presentation: "fullScreenModal",
+                gestureEnabled: false,
+              }}
+            />
+            <Stack.Screen
+              name="talk-bot"
+              options={{
+                headerShown: true,
+                headerTitle: "Talk to Memora",
+                headerStyle: { backgroundColor: t.bg },
+                headerShadowVisible: false,
+                headerTintColor: t.accent,
+                headerTitleStyle: {
+                  fontFamily: "Syne_700Bold",
+                  color: t.text,
+                  fontSize: 17,
+                },
+              }}
+            />
+          </Stack>
+        </AuthGate>
+      </AuthProvider>
+    </ElevenLabsProvider>
   );
 }

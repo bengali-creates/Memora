@@ -1,0 +1,9 @@
+{
+  "audioUrl": "https://storage.googleapis.com/aai-docs-samples/espn.m4a",
+  "userId": "8f31600d-a39b-45d4-9625-b9b69bd03126",
+  "eventContext": {
+    "event_name": "DevFest Kolkata 2026",
+    "location": "Kolkata, India",
+    "timestamp": "2026-03-04T15:30:00Z"
+  }
+}

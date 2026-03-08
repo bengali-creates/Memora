@@ -7,24 +7,26 @@
     "icon": "./assets/memora logo.png",
     "scheme": "memora",
     "userInterfaceStyle": "automatic",
-
     "ios": {
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Memora needs microphone access to detect and record conversations in Event Mode."
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/memora logo.png"
       },
-      "permissions": ["android.permission.RECORD_AUDIO"]
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.Memora"
     },
-
     "plugins": [
       "expo-router",
+      "expo-dev-client",
       [
         "expo-splash-screen",
         {
@@ -34,6 +36,12 @@
           "backgroundColor": "#ffffff"
         }
       ]
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "9043d211-026b-401d-ba0a-ca8c5f60e196"
+      }
+    }
   }
 }

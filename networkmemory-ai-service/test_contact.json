@@ -1,0 +1,12 @@
+{
+  "contact_data": {
+    "name": "Sarah Chen",
+    "role": "ML Engineer",
+    "company": "Google",
+    "topics_discussed": ["AI safety", "LLM alignment"],
+    "follow_ups": ["Send GitHub repo"],
+    "conversation_summary": "Discussed AI safety work at Google",
+    "met_at": "DevFest Kolkata 2026",
+    "met_date": "2026-02-15"
+  }
+}

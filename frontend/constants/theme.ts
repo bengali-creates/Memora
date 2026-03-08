@@ -2,6 +2,7 @@ import { useColorScheme } from "react-native";
 
 export const lightTheme = {
   bg: "#FAFAFE",
+  bgSecondary: "#F2F0FD",
   surface: "#F2F0FD",
   card: "#FFFFFF",
   cardHighlight: "#EDEAFB",
@@ -26,6 +27,7 @@ export const lightTheme = {
 
 export const darkTheme = {
   bg: "#0B0B12",
+  bgSecondary: "#12121C",
   surface: "#12121C",
   card: "#16161F",
   cardHighlight: "#1C1C2A",
